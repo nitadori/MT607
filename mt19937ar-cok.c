@@ -226,6 +226,25 @@ double genrand_res53(void)
 /* These real versions are due to Isaku Wada, 2002/01/09 added */
 
 #include <x86intrin.h>
+
+static inline __m512i mt_update(__m512i p00, __m512i p01, __m512i pm0, __m512i pm1){
+	__m512i p0 = p00;
+	__m512i p1 = _mm512_alignr_epi32(p01, p00, 1);
+	__m512i pm = _mm512_alignr_epi32(pm1, pm0, 13);
+
+	__m512i y = _mm512_or_epi32(
+			_mm512_and_epi32(p0, _mm512_set1_epi32(UMASK)),
+			_mm512_and_epi32(p1, _mm512_set1_epi32(LMASK)));
+
+	__m512i sr1  = _mm512_srli_epi32(y, 1);
+	__m512i sl31 = _mm512_slli_epi32(y, 31);
+	// move LSBs to MSBs, and then the mask register
+	__mmask16 mask = _mm512_movepi32_mask (sl31);
+	y = _mm512_mask_xor_epi32(sr1, mask, sr1, _mm512_set1_epi32(MATRIX_A));
+	y = _mm512_xor_epi32(y, pm);
+
+	return y;
+}
 void next_state_avx(){ 
 	// 624 = 16 * 39
 	// 397 = 16 * 24 + 13
@@ -235,33 +254,21 @@ void next_state_avx(){
 		NN = 39,
 	};
 
+	__m512i p00 = vstate[0];
+	__m512i p01 = vstate[1];
+	__m512i pm0 = vstate[24];
+	__m512i pm1 = vstate[25];
 #pragma unroll
 	for(int i=0; i<NN; i++){
-		__m512i p00 = _mm512_loadu_si512(vstate + (i+ 0));
-		__m512i p01 = _mm512_loadu_si512(vstate + (i+ 1)%NN);
-		__m512i pm0 = _mm512_loadu_si512(vstate + (i+24)%NN);
-		__m512i pm1 = _mm512_loadu_si512(vstate + (i+25)%NN);
+		__m512i y = mt_update(p00, p01, pm0, pm1);
 
-		__m512i p0 = p00;
-		__m512i p1 = _mm512_alignr_epi32(p01, p00, 1);
-		__m512i pm = _mm512_alignr_epi32(pm1, pm0, 13);
+		p00 = p01;
+		pm0 = pm1;
+		
+		p01 = vstate[(i+2   )%NN];
+		pm1 = vstate[(i+2+24)%NN];
 
-		__m512i y = _mm512_or_epi32(
-				_mm512_and_epi32(p0, _mm512_set1_epi32(UMASK)),
-				_mm512_and_epi32(p1, _mm512_set1_epi32(LMASK)));
-
-		__m512i sr1  = _mm512_srli_epi32(y, 1);
-		__m512i sl31 = _mm512_slli_epi32(y, 31);
-		// move LSBs to MSBs, and then the mask register
-		__mmask16 mask = _mm512_movepi32_mask (sl31);
-		y = _mm512_mask_xor_epi32(sr1, mask, sr1, _mm512_set1_epi32(MATRIX_A));
-		y = _mm512_xor_epi32(y, pm);
-
-#ifdef __GNUC__
-#define _mm512_storeu_epi32 _mm512_store_epi32
-#endif
-		_mm512_storeu_epi32(vstate + i, y);
-
+		vstate[i] = y;
 	}
 }
 
