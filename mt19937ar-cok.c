@@ -46,7 +46,6 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include <string.h>
 
 /* Period parameters */  
 #define N 624
@@ -247,7 +246,6 @@ static inline __m512i mt_update(__m512i p00, __m512i p01, __m512i pm0, __m512i p
 	return y;
 }
 
-extern void do_nothing(void *);
 void next_state_avx(){ 
 	// 624 = 16 * 39
 	// 397 = 16 * 24 + 13

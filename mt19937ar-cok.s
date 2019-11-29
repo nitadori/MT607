@@ -1287,7 +1287,7 @@ main:                                   # @main
 	movl	$.L.str.7, %edi
 	movl	$.L.str.8, %esi
 	movl	$.L__PRETTY_FUNCTION__.main, %ecx
-	movl	$316, %edx              # imm = 0x13C
+	movl	$314, %edx              # imm = 0x13A
 	callq	__assert_fail
 .Lfunc_end10:
 	.size	main, .Lfunc_end10-main
