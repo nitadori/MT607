@@ -254,7 +254,6 @@ void next_state_avx(){
 	__m512i *vstate;
 	asm volatile("movq %1,%0" : "=r"(vstate) : "r"((void *)state) : );
 
-
 	enum{
 		NN = 39,
 	};
